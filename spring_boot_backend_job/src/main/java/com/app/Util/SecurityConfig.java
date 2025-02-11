@@ -1,0 +1,43 @@
+package com.app.Util;
+
+
+
+import com.app.Util.JwtRequestFilter;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+@Configuration
+public class SecurityConfig extends WebSecurityConfigurerAdapter {
+
+    @Autowired
+    private JwtRequestFilter jwtRequestFilter;
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
+    @Override
+    protected void configure(HttpSecurity http) throws Exception {
+        http
+                .csrf().disable()  // Disable CSRF protection for JWT
+                .authorizeRequests()
+                .antMatchers("/auth/register", "/auth/login").permitAll()  // Allow open access to registration/login
+                .antMatchers("/hotel/reservations/**").authenticated()
+                .antMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll() // Allow access only for authenticated users to reservations
+                .antMatchers("/hotel/rooms/**").authenticated()  // Allow access only for authenticated users to rooms
+                .anyRequest().authenticated()  // Secure all other endpoints
+                .and()
+                .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)  // Stateless session management
+                .and()
+                .addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);  // Add JWT filter to intercept requests
+    }
+
+
+}

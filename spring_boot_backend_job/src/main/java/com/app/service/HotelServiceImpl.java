@@ -24,10 +24,10 @@ import com.app.entities.Room;
 import com.app.exception.ReservationConflictException;
 import com.app.exception.RoomNotFoundException;
 
-import lombok.extern.slf4j.XSlf4j;
+import lombok.extern.slf4j.Slf4j;
 
 @EnableCaching
-@XSlf4j
+@Slf4j
 @Service
 public class HotelServiceImpl implements HotelService {
 
@@ -110,8 +110,8 @@ public class HotelServiceImpl implements HotelService {
 	}
 
 	@Override
-	@CacheEvict(value = "reservations", key = "#reservationId")
 	@Transactional
+	@CacheEvict(value = {"reservations", "rooms"}, allEntries = true)
 	public void cancelReservation(Long reservationId) {
 		log.info("Cancelling reservation ID: {}", reservationId);
 		Reservation reservation = reservationRepository.findById(reservationId).orElseThrow(() -> {
@@ -245,5 +245,4 @@ public class HotelServiceImpl implements HotelService {
 						reservation.getCheckInDate(), reservation.getCheckOutDate()))
 				.collect(Collectors.toList());
 	}
-
-} // End of HotelServiceImpl
+}
