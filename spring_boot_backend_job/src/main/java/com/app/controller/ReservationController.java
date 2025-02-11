@@ -1,5 +1,7 @@
 package com.app.controller;
 
+import com.app.dto.CreateBookingRequest;
+import com.app.service.BookingService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -11,6 +13,8 @@ import com.app.dto.UpdateReservationRequest;
 import com.app.entities.Reservation;
 import com.app.service.HotelService;
 
+import javax.validation.Valid;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -22,13 +26,31 @@ public class ReservationController {
     @Autowired
     private HotelService hotelService;
 
+    @Autowired
+    private BookingService bookingService;
     @PostMapping
-    public ResponseEntity<String> createReservation(@RequestBody CreateReservationRequest request) {
+    public ResponseEntity<String> createReservation(@Valid @RequestBody CreateReservationRequest request) {
         logger.info("Received request to create reservation: {}", request);
-        hotelService.createReservation(request);
-        logger.info("Reservation created successfully for guest: {}", request.getGuestName());
-        return ResponseEntity.ok("Reservation created successfully");
+
+        // Create the reservation using the hotelService
+        Reservation reservation = hotelService.createReservation(request);
+
+        // Create the booking request from the reservation data
+        CreateBookingRequest bookingRequest = new CreateBookingRequest();
+        bookingRequest.setReservationId(reservation.getReservationId());  // Get the reservationId from the saved reservation
+        bookingRequest.setRoomId(request.getRoomId());
+        bookingRequest.setTotalPrice(request.getTotalPrice());
+        bookingRequest.setBookingDate(LocalDateTime.now());
+
+        // Create the booking using the bookingService
+        bookingService.createBooking(bookingRequest);
+
+        logger.info("Reservation and booking created successfully for guest: {}", request.getGuestName());
+
+        return ResponseEntity.ok("Reservation and booking created successfully");
     }
+
+
 
     @PutMapping
     public ResponseEntity<String> updateReservation(@RequestBody UpdateReservationRequest request) {
