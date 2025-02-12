@@ -1,22 +1,24 @@
 package com.app.entities;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import io.swagger.v3.oas.annotations.media.Schema;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import javax.persistence.*;
+import java.io.Serializable;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-public class User {
+public class User implements Serializable {
+    private static final long serialVersionUID = 1L;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Schema(hidden = true)  // Hide from OpenAPI documentation
     private Long id;
 
     @Column(unique = true, nullable = false)
@@ -27,6 +29,14 @@ public class User {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    @JsonIgnore  // Prevent exposing the role via REST API
-    private Role role = Role.USER;  // Default value of role to "USER"
+    @JsonIgnore
+    private Role role = Role.USER;
+
+    @JsonManagedReference
+    @OneToMany(mappedBy = "addedBy", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Hotel> addedHotels;
+
+    @JsonIgnore
+    @OneToMany(mappedBy = "addedBy", cascade = CascadeType.ALL)
+    private List<Room> addedRooms;
 }

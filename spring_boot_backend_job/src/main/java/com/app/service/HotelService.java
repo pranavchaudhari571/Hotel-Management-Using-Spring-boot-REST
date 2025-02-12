@@ -13,7 +13,7 @@ import com.app.entities.Room;
 
 
 public interface HotelService  {
-    Reservation createReservation(CreateReservationRequest request);
+    Reservation createReservation(CreateReservationRequest request,Long userId);
     Reservation updateReservation(UpdateReservationRequest request);
     void cancelReservation(Long reservationId);
     List<Reservation> getAllReservations();

@@ -23,14 +23,15 @@ public class RoomController {
     @Autowired
     private HotelService hotelService;
 
+
+
     @PostMapping
     public ResponseEntity<String> createRoom(@RequestBody CreateRoomRequest request) {
         logger.info("Received request to create room: {}", request);
-        hotelService.createRoom(request);
+        hotelService.createRoom(request); // Call the service to create room
         logger.info("Room created successfully with room number: {}", request.getRoomNumber());
         return ResponseEntity.ok("Room created successfully");
     }
-
     @PutMapping
     public ResponseEntity<String> updateRoom(@RequestBody UpdateRoomRequest request) {
         logger.info("Received request to update room: {}", request);

@@ -13,4 +13,5 @@ public class CreateRoomRequest {
     private String roomNumber;
     private String type;
     private BigDecimal price;
+    private Long hotelId; // Add hotelId to associate room with a hotel
 }

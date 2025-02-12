@@ -1,6 +1,8 @@
 package com.app.controller;
 
 import com.app.dto.LoginRequest;
+import com.app.dto.UserDTO;
+import com.app.dto.UserResponse;
 import com.app.entities.User;
 import com.app.service.AuthService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,10 +20,13 @@ public class AuthController {
 
     // Register a new user
     @PostMapping("/register")
-    public ResponseEntity<?> registerUser(@RequestBody User user) {
+    public ResponseEntity<?> registerUser(@RequestBody UserDTO user) {
         try {
             User registeredUser = authService.registerUser(user);
-            return new ResponseEntity<>(registeredUser, HttpStatus.CREATED);
+            UserResponse u=new UserResponse();
+            u.setUsername(registeredUser.getUsername());
+            u.setRole(registeredUser.getRole());
+            return new ResponseEntity<>(u, HttpStatus.CREATED);
         } catch (IllegalArgumentException e) {
             return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
         }
@@ -33,7 +38,7 @@ public class AuthController {
         try {
             User user = authService.authenticate(loginRequest.getUsername(), loginRequest.getPassword());
             // Use the role from the authenticated user
-            String token = authService.generateToken(user.getUsername(), user.getRole());
+            String token = authService.generateToken(user);
             return new ResponseEntity<>(token, HttpStatus.OK);
         } catch (BadCredentialsException e) {
             return new ResponseEntity<>(e.getMessage(), HttpStatus.UNAUTHORIZED);

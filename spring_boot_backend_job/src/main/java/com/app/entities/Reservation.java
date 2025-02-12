@@ -1,56 +1,54 @@
 package com.app.entities;
 
+import javax.persistence.*;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import javax.validation.constraints.*;
 
-import javax.persistence.*;
-import javax.validation.constraints.DecimalMin;
-import javax.validation.constraints.Email;
-import javax.validation.constraints.Future;
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.NotEmpty;
-import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Size;
-
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.RequiredArgsConstructor;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Data
-@RequiredArgsConstructor
+@NoArgsConstructor
 @AllArgsConstructor
-public class Reservation implements Serializable{
+public class Reservation implements Serializable {
     private static final long serialVersionUID = 1L;
 
-	@Id
+    @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long reservationId;
 
-	@NotBlank(message="Guest name cannot be empty")
-	@Size(min=3,max=100,message="Guest name must be between 3 and 100 characters")
+    @NotBlank(message = "Guest name cannot be empty")
+    @Size(min = 3, max = 100)
     private String guestName;
-	
-	@NotNull(message="check-in date cannot be null")
-	@Future(message="check-in date must be in future")
+
+    @NotNull(message = "Check-in date cannot be null")
+    @Future(message = "Check-in date must be in the future")
     private LocalDate checkInDate;
-	
-	@NotNull(message="check-out date cannot be null")
-	@Future(message="check-out date must be in future")
+
+    @NotNull(message = "Check-out date cannot be null")
+    @Future(message = "Check-out date must be in the future")
     private LocalDate checkOutDate;
 
-    @ManyToOne
-    @JoinColumn(name = "room_id")
-    @NotNull(message="Room must be selected")
+    @JsonIgnore
+    @ManyToOne(fetch = FetchType.LAZY)  // Changed to LAZY
+    @JoinColumn(name = "room_id", nullable = false)
     private Room room;
 
-    @DecimalMin(value = "0.0", inclusive = false, message = "Total price must be greater than 0")
+    @DecimalMin(value = "0.0", inclusive = false)
     private BigDecimal totalPrice;
-    
-    @Email(message = "Invalid email format")
-    @NotEmpty(message = "Email cannot be empty")
-    private String email; // New field for email
 
-    // getters and setters
+    @Email
+    @NotBlank
+    private String email;
+
+    @JsonIgnore
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
+
 }

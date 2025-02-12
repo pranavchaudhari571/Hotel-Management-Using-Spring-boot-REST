@@ -3,7 +3,6 @@ package com.app.entities;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
 import javax.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -18,14 +17,13 @@ public class Booking {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "roomId", nullable = false)
     private Room room;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "reservationId", nullable = false)
     private Reservation reservation;
-
 
     @Column(nullable = false, columnDefinition = "DATETIME")
     private LocalDateTime bookingDate;
@@ -33,5 +31,7 @@ public class Booking {
     @Column(nullable = false)
     private BigDecimal totalPrice;
 
-    // Getters, setters, constructors
+    @OneToOne
+    @JoinColumn(name = "paymentId", nullable = true)
+    private Payment payment;
 }

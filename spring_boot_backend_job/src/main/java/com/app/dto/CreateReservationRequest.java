@@ -17,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class CreateReservationRequest {
 
+
  @NotBlank(message = "Guest name cannot be empty")
  private String guestName;
 

@@ -1,13 +1,19 @@
 package com.app.service;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
+import com.app.dao.HotelRepository;
+import com.app.dao.UserRepository;
+import com.app.entities.*;
+import org.hibernate.Hibernate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,8 +25,6 @@ import com.app.dto.CreateRoomRequest;
 import com.app.dto.RoomResponse;
 import com.app.dto.UpdateReservationRequest;
 import com.app.dto.UpdateRoomRequest;
-import com.app.entities.Reservation;
-import com.app.entities.Room;
 import com.app.exception.ReservationConflictException;
 import com.app.exception.RoomNotFoundException;
 
@@ -38,30 +42,55 @@ public class HotelServiceImpl implements HotelService {
 	private ReservationRepository reservationRepository;
 
 	@Autowired
+	private HotelRepository hotelRepository;
+
+	@Autowired
+	private PaymentService paymentService;
+
+	@Autowired
+	private UserRepository userRepository;
+
+	@Autowired
 	private NotificationService notificationService;
 
 	@Override
 	@Transactional
 	@CachePut(value = "reservations", key = "#result.reservationId")
-	public Reservation createReservation(CreateReservationRequest request) {
+	public Reservation createReservation(CreateReservationRequest request, Long userId) {
 		log.info("Creating reservation for guest: {}", request.getGuestName());
-		validateReservation(request);
 
-		Room room = roomRepository.findById(request.getRoomId()).orElseThrow(() -> {
-			log.error("Room not found: {}", request.getRoomId());
-			return new RoomNotFoundException("Room not found");
-		});
+		// Validate if the user exists
+		User user = userRepository.findById(userId)
+				.orElseThrow(() -> new RuntimeException("User not found"));
 
+		// Validate if the room exists
+		Room room = roomRepository.findById(request.getRoomId())
+				.orElseThrow(() -> {
+					log.error("Room not found: {}", request.getRoomId());
+					return new RoomNotFoundException("Room not found");
+				});
+
+		// Check if room is available
+		if (!room.isAvailability()) {
+			throw new ReservationConflictException("Room is already booked.");
+		}
+
+		// Create the reservation
 		Reservation reservation = new Reservation();
 		reservation.setGuestName(request.getGuestName());
+		reservation.setUser(user);
 		reservation.setCheckInDate(request.getCheckInDate());
 		reservation.setCheckOutDate(request.getCheckOutDate());
 		reservation.setRoom(room);
 		reservation.setTotalPrice(request.getTotalPrice());
 		reservation.setEmail(request.getEmail());
 
+
 		room.setAvailability(false);
 		roomRepository.save(room);
+
+		// Process payment
+		paymentService.processPayment(reservation);
 
 		log.info("Reservation created successfully for room: {}", room.getRoomId());
 
@@ -81,15 +110,18 @@ public class HotelServiceImpl implements HotelService {
 	@CachePut(value = "reservations", key = "#result.reservationId")
 	public Reservation updateReservation(UpdateReservationRequest request) {
 		log.info("Updating reservation ID: {}", request.getReservationId());
-		Reservation reservation = reservationRepository.findById(request.getReservationId()).orElseThrow(() -> {
-			log.error("Reservation not found: {}", request.getReservationId());
-			return new RuntimeException("Reservation not found");
-		});
 
-		Room room = roomRepository.findById(request.getRoomId()).orElseThrow(() -> {
-			log.error("Room not found: {}", request.getRoomId());
-			return new RoomNotFoundException("Room not found");
-		});
+		Reservation reservation = reservationRepository.findById(request.getReservationId())
+				.orElseThrow(() -> {
+					log.error("Reservation not found: {}", request.getReservationId());
+					return new RuntimeException("Reservation not found");
+				});
+
+		Room room = roomRepository.findById(request.getRoomId())
+				.orElseThrow(() -> {
+					log.error("Room not found: {}", request.getRoomId());
+					return new RoomNotFoundException("Room not found");
+				});
 
 		reservation.setGuestName(request.getGuestName());
 		reservation.setCheckInDate(request.getCheckInDate());
@@ -105,8 +137,18 @@ public class HotelServiceImpl implements HotelService {
 	public List<RoomResponse> getAvailableRooms() {
 		List<Room> availableRooms = roomRepository.findByAvailability(true);
 		log.info("Fetched available rooms: {}", availableRooms.size());
-		return availableRooms.stream().map(room -> new RoomResponse(room.getRoomId(), room.getRoomNumber(),
-				room.getType(), room.getPrice(), room.isAvailability())).collect(Collectors.toList());
+
+		return availableRooms.stream().map(room -> {
+			String hotelName = room.getHotel() != null ? room.getHotel().getName() : "Unknown Hotel";
+			return new RoomResponse(
+					room.getRoomId(),
+					room.getRoomNumber(),
+					room.getType(),
+					room.getPrice(),
+					room.isAvailability(),
+					hotelName // Add hotel name
+			);
+		}).collect(Collectors.toList());
 	}
 
 	@Override
@@ -114,10 +156,11 @@ public class HotelServiceImpl implements HotelService {
 	@CacheEvict(value = {"reservations", "rooms"}, allEntries = true)
 	public void cancelReservation(Long reservationId) {
 		log.info("Cancelling reservation ID: {}", reservationId);
-		Reservation reservation = reservationRepository.findById(reservationId).orElseThrow(() -> {
-			log.error("Reservation not found: {}", reservationId);
-			return new RuntimeException("Reservation not found");
-		});
+		Reservation reservation = reservationRepository.findById(reservationId)
+				.orElseThrow(() -> {
+					log.error("Reservation not found: {}", reservationId);
+					return new RuntimeException("Reservation not found");
+				});
 
 		Room room = reservation.getRoom();
 		room.setAvailability(true);
@@ -148,41 +191,72 @@ public class HotelServiceImpl implements HotelService {
 	}
 
 	@Override
-	@Cacheable(value = "reservations")
+	@Transactional
 	public List<Reservation> getAllReservations() {
-		log.info("Fetching all reservations");
-		return reservationRepository.findAll();
+		List<Reservation> reservations = reservationRepository.findAll();
+
+		reservations.forEach(reservation -> {
+			Hibernate.initialize(reservation.getUser());
+			Hibernate.initialize(reservation.getRoom());
+			Hibernate.initialize(reservation.getRoom().getHotel());
+		});
+
+		return reservations;
 	}
 
 	@Override
 	@Cacheable(value = "reservations", key = "#reservationId")
+	@Transactional
 	public Reservation getReservationById(Long reservationId) {
-		log.info("Fetching reservation ID: {}", reservationId);
-		return reservationRepository.findById(reservationId).orElseThrow(() -> {
-			log.error("Reservation not found: {}", reservationId);
-			return new RuntimeException("Reservation not found");
-		});
+		Reservation reservation = reservationRepository.findById(reservationId)
+				.orElseThrow(() -> new RuntimeException("Reservation not found"));
+
+		// Initialize lazy fields
+		Hibernate.initialize(reservation.getUser());
+		Hibernate.initialize(reservation.getRoom());
+		Hibernate.initialize(reservation.getRoom().getHotel());
+
+		return reservation;
 	}
+
 
 	@Override
 	@Transactional
 	@CacheEvict(value = "rooms", allEntries = true)
-	public Room createRoom(CreateRoomRequest request) {
-		log.info("Creating room with number: {}", request.getRoomNumber());
-		Room room = new Room();
-		room.setRoomNumber(request.getRoomNumber());
-		room.setType(request.getType());
-		room.setPrice(request.getPrice());
-		room.setAvailability(true);
+	public Room createRoom(CreateRoomRequest roomRequest) {
+		Long userId = getUserIdFromSecurityContext();
 
-		Room savedRoom = roomRepository.save(room); // Ensure the room is saved before accessing its ID
+		// Check if the user exists
+		User user = userRepository.findById(userId)
+				.orElseThrow(() -> new RuntimeException("User not found"));
+
+		// Fetch the hotel associated with the room
+		Hotel hotel = hotelRepository.findById(roomRequest.getHotelId())
+				.orElseThrow(() -> new RuntimeException("Hotel not found"));
+
+		// Create and save the room entity
+		Room room = new Room();
+		room.setRoomNumber(roomRequest.getRoomNumber());
+		room.setType(roomRequest.getType());
+		room.setPrice(roomRequest.getPrice());
+		room.setAvailability(true);  // Default to true (room is available)
+		room.setHotel(hotel);  // Set the hotel for the room
+		room.setAddedBy(user);  // Set the user who added the room
+
+		Room savedRoom = roomRepository.save(room);
 		log.info("Room created successfully: {}", savedRoom.getRoomId());
+
 		if (savedRoom == null || savedRoom.getRoomId() == null) {
 			log.error("Room was not saved correctly. Room: {}", savedRoom);
 			throw new RuntimeException("Failed to create room, roomId is null.");
 		}
 
-		return savedRoom; // Return the saved room
+		return savedRoom;
+	}
+
+	private Long getUserIdFromSecurityContext() {
+		CustomUserDetails userDetails = (CustomUserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+		return userDetails.getAdminId();
 	}
 
 	@Override
@@ -190,10 +264,11 @@ public class HotelServiceImpl implements HotelService {
 	@CacheEvict(value = "rooms", allEntries = true)
 	public void updateRoom(UpdateRoomRequest request) {
 		log.info("Updating room ID: {}", request.getRoomId());
-		Room room = roomRepository.findById(request.getRoomId()).orElseThrow(() -> {
-			log.error("Room not found: {}", request.getRoomId());
-			return new RuntimeException("Room not found");
-		});
+		Room room = roomRepository.findById(request.getRoomId())
+				.orElseThrow(() -> {
+					log.error("Room not found: {}", request.getRoomId());
+					return new RuntimeException("Room not found");
+				});
 
 		room.setRoomNumber(request.getRoomNumber());
 		room.setType(request.getType());
@@ -209,8 +284,18 @@ public class HotelServiceImpl implements HotelService {
 	public List<RoomResponse> getAllRooms() {
 		log.info("Fetching all rooms");
 		List<Room> rooms = roomRepository.findAll();
-		return rooms.stream().map(room -> new RoomResponse(room.getRoomId(), room.getRoomNumber(), room.getType(),
-				room.getPrice(), room.isAvailability())).collect(Collectors.toList());
+
+		return rooms.stream().map(room -> {
+			String hotelName = room.getHotel() != null ? room.getHotel().getName() : "Unknown Hotel";
+			return new RoomResponse(
+					room.getRoomId(),
+					room.getRoomNumber(),
+					room.getType(),
+					room.getPrice(),
+					room.isAvailability(),
+					hotelName
+			);
+		}).collect(Collectors.toList());
 	}
 
 	@Override
@@ -218,12 +303,23 @@ public class HotelServiceImpl implements HotelService {
 	@Cacheable(value = "rooms", key = "#roomId")
 	public RoomResponse getRoomById(Long roomId) {
 		log.info("Fetching room ID: {}", roomId);
-		Room room = roomRepository.findById(roomId).orElseThrow(() -> {
-			log.error("Room not found: {}", roomId);
-			return new RuntimeException("Room not found");
-		});
-		return new RoomResponse(room.getRoomId(), room.getRoomNumber(), room.getType(), room.getPrice(),
-				room.isAvailability());
+
+		Room room = roomRepository.findById(roomId)
+				.orElseThrow(() -> {
+					log.error("Room not found: {}", roomId);
+					return new RuntimeException("Room not found");
+				});
+
+		String hotelName = room.getHotel() != null ? room.getHotel().getName() : "Unknown Hotel";
+
+		return new RoomResponse(
+				room.getRoomId(),
+				room.getRoomNumber(),
+				room.getType(),
+				room.getPrice(),
+				room.isAvailability(),
+				hotelName
+		);
 	}
 
 	@Override
