@@ -6,6 +6,7 @@ import com.app.service.BookingService;
 import io.swagger.v3.oas.annotations.Parameter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.slf4j.Logger;
@@ -75,6 +76,7 @@ public class ReservationController {
     }
 
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<Reservation>> getAllReservations() {
         logger.info("Received request to fetch all reservations");
         List<Reservation> reservations = hotelService.getAllReservations();

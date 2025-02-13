@@ -6,6 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import lombok.ToString;
 
 import javax.persistence.*;
 import java.io.Serializable;
@@ -16,6 +17,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+@ToString(exclude = {"addedBy", "rooms"})
 public class Hotel implements Serializable {
     private static final long serialVersionUID = 1L;
 
@@ -28,7 +30,7 @@ public class Hotel implements Serializable {
     private String phoneNumber;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JsonIgnore
+    @JsonManagedReference
     private User addedBy;
 
     @OneToMany(mappedBy = "hotel", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)

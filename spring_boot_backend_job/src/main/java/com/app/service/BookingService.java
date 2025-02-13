@@ -9,5 +9,6 @@ public interface BookingService {
     BookingResponse createBooking(CreateBookingRequest request);
     List<BookingResponse> getBookingsByRoom(Long roomId);
     List<BookingResponse> getBookingsByReservation(Long reservationId);
+    public void deleteBooking(Long bookingId);
 }
 

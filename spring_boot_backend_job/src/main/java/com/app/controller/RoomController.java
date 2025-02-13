@@ -2,6 +2,7 @@ package com.app.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,6 +27,7 @@ public class RoomController {
 
 
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<String> createRoom(@RequestBody CreateRoomRequest request) {
         logger.info("Received request to create room: {}", request);
         hotelService.createRoom(request); // Call the service to create room
@@ -33,6 +35,7 @@ public class RoomController {
         return ResponseEntity.ok("Room created successfully");
     }
     @PutMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<String> updateRoom(@RequestBody UpdateRoomRequest request) {
         logger.info("Received request to update room: {}", request);
         hotelService.updateRoom(request);
@@ -41,6 +44,7 @@ public class RoomController {
     }
 
     @DeleteMapping("/{roomId}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<String> deleteRoom(@PathVariable Long roomId) {
         logger.info("Received request to delete room with ID: {}", roomId);
         hotelService.deleteRoom(roomId);
@@ -73,6 +77,7 @@ public class RoomController {
     }
 
     @GetMapping("/booked")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<BookedRoomResponse>> getBookedRooms() {
         logger.info("Received request to fetch booked rooms");
         List<BookedRoomResponse> bookedRooms = hotelService.getBookedRooms();

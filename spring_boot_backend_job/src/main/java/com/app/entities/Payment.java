@@ -3,14 +3,15 @@ package com.app.entities;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 import javax.persistence.*;
 import java.math.BigDecimal;
-
 @Entity
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@ToString(exclude = "reservation")
 public class Payment {
 
     @Id
@@ -21,8 +22,8 @@ public class Payment {
     private BigDecimal amount;
 
     @ManyToOne
-    @JoinColumn(name = "reservationId", insertable = false, updatable = false)
-    private Reservation reservation;
+    @JoinColumn(name = "reservationId", referencedColumnName = "reservationId", nullable = false)
+    private Reservation reservation;  // Ensure this is not null
 
     @Column(nullable = false)
     private PaymentStatus status;  // Enum for PaymentStatus (e.g., PENDING, COMPLETED)

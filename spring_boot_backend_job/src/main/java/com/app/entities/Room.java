@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 import javax.persistence.*;
 import javax.validation.constraints.DecimalMin;
@@ -19,6 +20,7 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@ToString(exclude = {"reservations", "payment", "addedBy"})
 public class Room implements Serializable {
 
     private static final long serialVersionUID = 1L;
