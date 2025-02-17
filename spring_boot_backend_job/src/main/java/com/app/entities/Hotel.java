@@ -33,7 +33,7 @@ public class Hotel implements Serializable {
     @JsonManagedReference
     private User addedBy;
 
-    @OneToMany(mappedBy = "hotel", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "hotel", fetch = FetchType.EAGER, cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonManagedReference
     private List<Room> rooms;
 }

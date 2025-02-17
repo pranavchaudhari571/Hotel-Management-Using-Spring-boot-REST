@@ -25,7 +25,6 @@ import java.util.Map;
 @Component
 public class JwtRequestFilter extends OncePerRequestFilter {
 
-    // Securely load the secret key (make sure this is stored securely, for example in an environment variable)
     @Value("${SECRET_KEY}")
     private String jwtSecret;
 
@@ -35,39 +34,26 @@ public class JwtRequestFilter extends OncePerRequestFilter {
         String header = request.getHeader("Authorization");
 
         if (header != null && header.startsWith("Bearer ")) {
-            String token = header.substring(7);  // Extract the token
+            String token = header.substring(7);  // Extract token
 
             try {
-                // Parse the token and extract claims
                 Map<String, Object> claims = Jwts.parserBuilder()
                         .setSigningKey(jwtSecret)
                         .build()
                         .parseClaimsJws(token)
                         .getBody();
 
-                // Extract username (subject)
                 String username = (String) claims.get("sub");
-
-                // Extract roles if available
                 List<SimpleGrantedAuthority> authorities = new ArrayList<>();
-                if (claims.containsKey("roles")) {
-                    List<String> roles = (List<String>) claims.get("roles");
-                    for (String role : roles) {
-                        authorities.add(new SimpleGrantedAuthority(role));
-                    }
+
+                // Handle role and add the "ROLE_" prefix
+                if (claims.containsKey("role")) {
+                    String role = (String) claims.get("role");
+                    authorities.add(new SimpleGrantedAuthority("ROLE_" + role));  // Add "ROLE_" prefix
                 }
 
-                // Extract adminId and convert Integer to Long if necessary
-                Object adminIdObj = claims.get("adminId");
-                Long adminId = null;
+                Long adminId = (claims.get("adminId") instanceof Integer) ? ((Integer) claims.get("adminId")).longValue() : (Long) claims.get("adminId");
 
-                if (adminIdObj instanceof Integer) {
-                    adminId = ((Integer) adminIdObj).longValue(); // Convert Integer to Long
-                } else if (adminIdObj instanceof Long) {
-                    adminId = (Long) adminIdObj; // Use Long directly if it's already Long
-                }
-
-                // Create an authentication token and set it in the SecurityContext
                 if (username != null) {
                     CustomUserDetails userDetails = new CustomUserDetails(username, authorities, adminId);
                     UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
@@ -76,22 +62,17 @@ public class JwtRequestFilter extends OncePerRequestFilter {
                 }
 
             } catch (ExpiredJwtException e) {
-                logger.error("JWT token has expired", e);
                 response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "JWT token has expired");
-                return; // If expired, stop the filter chain here
+                return;
             } catch (SignatureException e) {
-                logger.error("Invalid JWT signature", e);
                 response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid JWT signature");
-                return; // If invalid signature, stop the filter chain here
+                return;
             } catch (Exception e) {
-                logger.error("Error parsing JWT token", e);
                 response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized");
                 return;
             }
         }
 
-        // Proceed with the filter chain
         chain.doFilter(request, response);
     }
-
 }

@@ -10,4 +10,5 @@ import lombok.NoArgsConstructor;
 public class HotelRequestDTO {
     private String name;
     private String location;
+    private String phoneNumber;
 }

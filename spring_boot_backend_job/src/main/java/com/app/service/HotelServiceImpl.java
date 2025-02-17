@@ -174,6 +174,7 @@ public class HotelServiceImpl implements HotelService {
 
     @Override
 //	@Cacheable(value = "reservations")
+    @Transactional
     public List<RoomResponse> getAvailableRooms() {
         List<Room> availableRooms = roomRepository.findByAvailability(true);
         log.info("Fetched available rooms: {}", availableRooms.size());
@@ -352,7 +353,7 @@ public class HotelServiceImpl implements HotelService {
 
     @Override
     @Cacheable(value = "rooms")
-
+    @Transactional
     public List<RoomResponse> getAllRooms() {
         log.info("Fetching all rooms");
         List<Room> rooms = roomRepository.findAll();
@@ -406,6 +407,7 @@ public class HotelServiceImpl implements HotelService {
     }
 
     @Override
+    @Transactional
     public List<BookedRoomResponse> getBookedRooms() {
         log.info("Fetching booked rooms");
         List<Reservation> reservations = reservationRepository.findAll();

@@ -9,7 +9,6 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-
 @Configuration
 public class SecurityConfig extends WebSecurityConfigurerAdapter {
 
@@ -20,6 +19,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();  // You can change the encoder type if needed
     }
+
     @Override
     protected void configure(HttpSecurity http) throws Exception {
         http
@@ -27,12 +27,13 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .authorizeRequests()
                 .antMatchers("/auth/register", "/auth/login").permitAll()  // Allow open access to registration/login
                 .antMatchers("/hotel/reservations/**").authenticated()
-                .antMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()  // Allow access only for authenticated users to reservations
-                .antMatchers("/hotel/rooms/**").authenticated()  // Allow access only for authenticated users to rooms
+                .antMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()  // Allow access to API docs
+                .antMatchers("/hotel/rooms/**").hasAuthority("ROLE_ADMIN")  // Use hasAuthority instead of hasRole
                 .anyRequest().authenticated()  // Secure all other endpoints
                 .and()
                 .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)  // Stateless session management
                 .and()
                 .addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);  // Add JWT filter to intercept requests
     }
+
 }

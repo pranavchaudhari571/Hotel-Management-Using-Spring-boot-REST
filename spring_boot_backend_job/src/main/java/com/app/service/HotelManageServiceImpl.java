@@ -10,6 +10,7 @@ import com.app.entities.Role;
 import com.app.entities.User;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -26,6 +27,7 @@ public class HotelManageServiceImpl implements HotelManageService {
     private RoomRepository roomRepository;
 
     // Add a new hotel
+    @Transactional
     public HotelResponseDTO addHotel(HotelRequestDTO hotelRequestDTO, Long adminId) {
         // Check if the admin exists
         User admin = userRepository.findById(adminId)
@@ -40,6 +42,7 @@ public class HotelManageServiceImpl implements HotelManageService {
         hotel.setName(hotelRequestDTO.getName());
         hotel.setLocation(hotelRequestDTO.getLocation());
         hotel.setAddedBy(admin);
+        hotel.setPhoneNumber(hotelRequestDTO.getPhoneNumber());
 
         hotel = hotelRepository.save(hotel);
 
@@ -48,6 +51,7 @@ public class HotelManageServiceImpl implements HotelManageService {
     }
 
     // Update an existing hotel
+    @Transactional
     public HotelResponseDTO updateHotel(Long hotelId, HotelRequestDTO hotelRequestDTO, Long adminId) {
         // Check if the admin exists
         User admin = userRepository.findById(adminId)
@@ -70,14 +74,15 @@ public class HotelManageServiceImpl implements HotelManageService {
     }
 
     // Get all hotels
+    @Transactional
     public List<HotelResponseDTO> getAllHotels() {
         List<Hotel> hotels = hotelRepository.findAll();
-        return hotels.stream()
-                .map(this::mapToResponseDTO)
-                .collect(Collectors.toList());
+        return hotels.stream().map(this::mapToResponseDTO).collect(Collectors.toList());
     }
 
+
     // Get a hotel by ID
+    @Transactional(readOnly = true)
     public HotelResponseDTO getHotelById(Long hotelId) {
         Hotel hotel = hotelRepository.findById(hotelId)
                 .orElseThrow(() -> new RuntimeException("Hotel not found"));
@@ -85,6 +90,7 @@ public class HotelManageServiceImpl implements HotelManageService {
     }
 
     // Delete a hotel
+    @Transactional
     public void deleteHotel(Long hotelId, Long adminId) {
         // Check if the admin exists
         User admin = userRepository.findById(adminId)
@@ -109,6 +115,7 @@ public class HotelManageServiceImpl implements HotelManageService {
         dto.setName(hotel.getName());
         dto.setLocation(hotel.getLocation());
         dto.setAddedBy(hotel.getAddedBy().getUsername());
+        dto.setPhoneNumber(hotel.getPhoneNumber());
         return dto;
     }
 }
