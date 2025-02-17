@@ -21,7 +21,7 @@ public class Payment {
     @Column(nullable = false)
     private BigDecimal amount;
 
-    @ManyToOne
+    @ManyToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "reservationId", referencedColumnName = "reservationId", nullable = false)
     private Reservation reservation;  // Ensure this is not null
 

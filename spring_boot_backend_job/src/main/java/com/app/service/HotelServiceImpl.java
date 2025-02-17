@@ -8,12 +8,15 @@ import com.app.dao.HotelRepository;
 import com.app.dao.UserRepository;
 import com.app.dto.*;
 import com.app.entities.*;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.hibernate.Hibernate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,6 +52,10 @@ public class HotelServiceImpl implements HotelService {
 
     @Autowired
     private NotificationService notificationService;
+
+    @Autowired
+    private KafkaTemplate<String, String> kafkaTemplate;
+
 
     @Autowired
     private BookingService bookingService;
@@ -90,11 +97,6 @@ public class HotelServiceImpl implements HotelService {
         reservation.setTotalPrice(request.getTotalPrice());
         reservation.setEmail(request.getEmail());
 
-        // Save the reservation first to ensure reservationId is generated
-        reservation = reservationRepository.save(reservation);
-
-        room.setAvailability(false); // Mark the room as unavailable
-        roomRepository.save(room);
 
         // Process payment after saving the reservation to ensure reservationId is set
         // We are now processing the payment in the createBooking method
@@ -105,11 +107,33 @@ public class HotelServiceImpl implements HotelService {
         // Send confirmation email
         String emailBody = generateConfirmationEmail(request, room);
 
+//        try {
+//            notificationService.sendHtmlEmail(request.getEmail(), "Reservation Confirmation for" + request.getGuestName(), emailBody);
+//        } catch (Exception e) {
+//            log.error("Failed to send email: {}", e.getMessage());
+//        }
+
+        // Create an email message object in JSON format
+        EmailMessage emailMessage = new EmailMessage(request.getEmail(),
+                "Reservation Confirmation for " + request.getGuestName(), emailBody);
+
         try {
-            notificationService.sendHtmlEmail(request.getEmail(), "Reservation Confirmation for" + request.getGuestName(), emailBody);
-        } catch (Exception e) {
-            log.error("Failed to send email: {}", e.getMessage());
+            String emailJson = new ObjectMapper().writeValueAsString(emailMessage);
+            log.info("Email is sending: " + emailJson);
+            kafkaTemplate.send("reservation-email-topic",emailJson);
+
+        } catch (JsonProcessingException e) {
+            log.error("Failed to serialize email message to JSON: {}", e.getMessage());
+            // Optionally, rethrow the exception or handle it as needed
         }
+
+        // Send the email message to Kafka
+        // Save the reservation first to ensure reservationId is generated
+        reservation = reservationRepository.save(reservation);
+
+        room.setAvailability(false); // Mark the room as unavailable
+        roomRepository.save(room);
+
 
         return reservation;
     }
@@ -233,12 +257,28 @@ public class HotelServiceImpl implements HotelService {
         // Send cancellation email
 //		String emailBody = "Dear " + reservation.getGuestName() + ", your reservation has been canceled.";
         String emailBody = "<html><head><style>body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; padding: 20px; background-color: #f4f4f4; }h2 { color: #F44336; }table { width: 100%; border-collapse: collapse; margin-top: 20px; background-color: #ffffff; }th, td { padding: 10px; text-align: left; border: 1px solid #ddd; }th { background-color: #F44336; color: white; }.footer { margin-top: 20px; font-size: 12px; color: #555; text-align: center; }</style></head><body><h2>Reservation Cancellation</h2><p>Dear <strong>" + reservation.getGuestName() + "</strong>,</p><p>We regret to inform you that your reservation has been canceled. Below are the details:</p><table><tr><th>Reservation ID</th><td>" + reservation.getReservationId() + "</td></tr><tr><th>Check-in Date</th><td>" + reservation.getCheckInDate() + "</td></tr><tr><th>Check-out Date</th><td>" + reservation.getCheckOutDate() + "</td></tr><tr><th>Room Type</th><td>" + reservation.getRoom().getType() + "</td></tr><tr><th>Total Price</th><td>₹" + reservation.getTotalPrice() + "</td></tr></table><p>If you have any questions or concerns, feel free to reach out to our customer support team.</p><p>We apologize for any inconvenience caused.</p><p>Best regards,</p><p>Your Hotel Team</p><div class='footer'><p>This is an automated message. Please do not reply directly to this email.</p></div></body></html>";
-        try {
-            notificationService.sendHtmlEmail(reservation.getEmail(), "Reservation Canceled", emailBody);
+//        try {
+//            notificationService.sendHtmlEmail(reservation.getEmail(), "Reservation Canceled", emailBody);
+//
+//        } catch (MessagingException e) {
+//            throw new RuntimeException(e);
+//        }
 
-        } catch (MessagingException e) {
-            throw new RuntimeException(e);
+        EmailMessage emailMessage = new EmailMessage(reservation.getEmail(),
+                "Reservation Canceled", emailBody);
+
+
+        try {
+            String emailJson = new ObjectMapper().writeValueAsString(emailMessage);
+            log.info("Email is sending: " + emailJson);
+            kafkaTemplate.send("reservation-cancellation-topic", emailJson);
+
+        } catch (JsonProcessingException e) {
+            log.error("Failed to serialize email message to JSON: {}", e.getMessage());
+            // Optionally, rethrow the exception or handle it as needed
         }
+
+
 
     }
 

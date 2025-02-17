@@ -58,7 +58,7 @@ public class OpenApiConfig {
                         .addResponses("404", new ApiResponse().description("Resource not found"))
                         .addResponses("500", new ApiResponse().description("Internal Server Error"))
                         .addParameters("X-Request-ID", new Parameter()
-                                .in("header") // Use "header" as a string instead of ParameterIn.HEADER
+                                .in("header")
                                 .name("X-Request-ID")
                                 .description("Unique request identifier for tracking purposes.")
                                 .required(true)
@@ -68,10 +68,10 @@ public class OpenApiConfig {
                                 .type("object")
                                 .addProperties("id", new IntegerSchema())
                                 .addProperties("name", new StringSchema())
-                                        .addProperties("status", new StringSchema()._enum(Arrays.asList("available", "booked")))
-//                .addProperties("status", new StringSchema()._enum("available", "booked"))
+                                .addProperties("status", new StringSchema()._enum(Arrays.asList("available", "booked")))
                         )
                 )
+
                 .externalDocs(new ExternalDocumentation()
                         .description("Find out more about the Hotel Management API")
                         .url("https://www.goibigo.com/docs")
