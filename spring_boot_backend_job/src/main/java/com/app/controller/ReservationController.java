@@ -68,7 +68,7 @@ public class ReservationController {
     }
 
     @DeleteMapping("/{reservationId}")
-    public ResponseEntity<String> cancelReservation(@PathVariable Long reservationId) {
+    public ResponseEntity<String> cancelReservation(@PathVariable Long reservationId) throws InterruptedException {
         logger.info("Received request to cancel reservation with ID: {}", reservationId);
         hotelService.cancelReservation(reservationId);
         logger.info("Reservation canceled successfully for ID: {}", reservationId);

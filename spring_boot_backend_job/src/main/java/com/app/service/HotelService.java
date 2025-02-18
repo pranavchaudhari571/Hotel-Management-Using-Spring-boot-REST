@@ -15,7 +15,7 @@ import com.app.entities.Room;
 public interface HotelService  {
     Reservation createReservation(CreateReservationRequest request,Long userId);
     Reservation updateReservation(UpdateReservationRequest request);
-    void cancelReservation(Long reservationId);
+    void cancelReservation(Long reservationId) throws InterruptedException;
     List<Reservation> getAllReservations();
     Reservation getReservationById(Long reservationId);
     List<RoomResponse> getAllRooms();

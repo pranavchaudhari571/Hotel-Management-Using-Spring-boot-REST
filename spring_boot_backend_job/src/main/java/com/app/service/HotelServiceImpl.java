@@ -4,14 +4,14 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import com.app.dao.HotelRepository;
-import com.app.dao.UserRepository;
+import com.app.dao.*;
 import com.app.dto.*;
 import com.app.entities.*;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.hibernate.Hibernate;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
@@ -21,10 +21,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.app.dao.ReservationRepository;
-import com.app.dao.RoomRepository;
 import com.app.exception.ReservationConflictException;
-import com.app.exception.RoomNotFoundException;
+import com.app.exception.*;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -59,6 +57,12 @@ public class HotelServiceImpl implements HotelService {
 
     @Autowired
     private BookingService bookingService;
+
+    @Autowired
+    private CacheManager cacheManager;
+
+    @Autowired
+    private PaymentRepository paymentRepository;
 
     @Override
     @Transactional
@@ -216,33 +220,45 @@ public class HotelServiceImpl implements HotelService {
         }).collect(Collectors.toList());
     }
 
+
+
     @Override
     @Transactional
-    @CacheEvict(value = {"reservations", "rooms"}, allEntries = true)
-
-
-    public void cancelReservation(Long reservationId) {
+    @CacheEvict(value = {"reservations", "rooms"}, key = "#reservationId")
+    public void cancelReservation(Long reservationId) throws InterruptedException {
         log.info("Cancelling reservation ID: {}", reservationId);
 
-        // Find the reservation
+        // Fetch the reservation to check if it exists
         Reservation reservation = reservationRepository.findById(reservationId)
                 .orElseThrow(() -> {
                     log.error("Reservation not found: {}", reservationId);
-                    return new RuntimeException("Reservation not found");
+                    return new ReservationNotFoundException("Reservation not found");
                 });
 
-        // Fetch and delete associated booking
-        List<BookingResponse> bookings = bookingService.getBookingsByReservation(reservation.getReservationId()); // Fetch associated bookings
 
+        List<BookingResponse> bookings = bookingService.getBookingsByReservation(reservation.getReservationId());
         if (bookings != null && !bookings.isEmpty()) {
             log.info("Deleting associated bookings for reservation ID: {}", reservationId);
-
-            // Iterate through all bookings and delete them
             for (BookingResponse booking : bookings) {
-                bookingService.deleteBooking(booking.getId());  // Assuming deleteBooking method in BookingService
-                log.info("Booking ID {} deleted successfully", booking.getId());
+                try {
+                    bookingService.deleteBooking(booking.getId());
+                    log.info("Booking ID {} deleted successfully", booking.getId());
+                } catch (Exception e) {
+                    log.error("Failed to delete booking ID: {}", booking.getId(), e);
+                    throw new BookingDeletionException("Error while deleting booking record");
+                }
             }
         }
+        // Delete payment records first
+        try {
+            paymentRepository.deleteByReservation_ReservationId(reservationId);
+            log.info("Payments for reservation ID: {} deleted", reservationId);
+        } catch (Exception e) {
+            log.error("Failed to delete payments for reservation ID: {}", reservationId);
+            throw new PaymentDeletionException("Error while deleting payment records");
+        }
+
+        // Fetch and delete associated bookings
 
 
         // Revert room availability
@@ -250,36 +266,40 @@ public class HotelServiceImpl implements HotelService {
         room.setAvailability(true);
         roomRepository.save(room);
 
-        // Delete reservation
-        reservationRepository.deleteById(reservationId);
+        // Delete the reservation last to avoid integrity violation
+        try {
+            reservationRepository.deleteById(reservationId);
+            reservationRepository.flush();
+            log.info("Reservation ID {} deleted successfully", reservationId);
+        } catch (Exception e) {
+            log.error("Failed to delete reservation ID: {}", reservationId);
+            throw new ReservationDeletionException("Error while deleting reservation");
+        }
+
+        // Send cancellation email asynchronously via Kafka
+        sendCancellationEmail(reservation);
+
+        // Evict reservation from cache
+        cacheManager.getCache("reservations").evict(reservationId);
+        log.info("Reservation evicted from cache: {}", reservationId);
+
         log.info("Reservation canceled successfully: {}", reservationId);
+    }
 
-        // Send cancellation email
-//		String emailBody = "Dear " + reservation.getGuestName() + ", your reservation has been canceled.";
+
+    private void sendCancellationEmail(Reservation reservation) {
         String emailBody = "<html><head><style>body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; padding: 20px; background-color: #f4f4f4; }h2 { color: #F44336; }table { width: 100%; border-collapse: collapse; margin-top: 20px; background-color: #ffffff; }th, td { padding: 10px; text-align: left; border: 1px solid #ddd; }th { background-color: #F44336; color: white; }.footer { margin-top: 20px; font-size: 12px; color: #555; text-align: center; }</style></head><body><h2>Reservation Cancellation</h2><p>Dear <strong>" + reservation.getGuestName() + "</strong>,</p><p>We regret to inform you that your reservation has been canceled. Below are the details:</p><table><tr><th>Reservation ID</th><td>" + reservation.getReservationId() + "</td></tr><tr><th>Check-in Date</th><td>" + reservation.getCheckInDate() + "</td></tr><tr><th>Check-out Date</th><td>" + reservation.getCheckOutDate() + "</td></tr><tr><th>Room Type</th><td>" + reservation.getRoom().getType() + "</td></tr><tr><th>Total Price</th><td>₹" + reservation.getTotalPrice() + "</td></tr></table><p>If you have any questions or concerns, feel free to reach out to our customer support team.</p><p>We apologize for any inconvenience caused.</p><p>Best regards,</p><p>Your Hotel Team</p><div class='footer'><p>This is an automated message. Please do not reply directly to this email.</p></div></body></html>";
-//        try {
-//            notificationService.sendHtmlEmail(reservation.getEmail(), "Reservation Canceled", emailBody);
-//
-//        } catch (MessagingException e) {
-//            throw new RuntimeException(e);
-//        }
 
-        EmailMessage emailMessage = new EmailMessage(reservation.getEmail(),
-                "Reservation Canceled", emailBody);
-
+        EmailMessage emailMessage = new EmailMessage(reservation.getEmail(), "Reservation Canceled", emailBody);
 
         try {
             String emailJson = new ObjectMapper().writeValueAsString(emailMessage);
-            log.info("Email is sending: " + emailJson);
+            log.info("Email is sending: {}", emailJson);
             kafkaTemplate.send("reservation-cancellation-topic", emailJson);
-
         } catch (JsonProcessingException e) {
             log.error("Failed to serialize email message to JSON: {}", e.getMessage());
             // Optionally, rethrow the exception or handle it as needed
         }
-
-
-
     }
 
     private void validateReservation(CreateReservationRequest request) {
@@ -303,6 +323,7 @@ public class HotelServiceImpl implements HotelService {
     @Cacheable(value = "reservations")
     public List<Reservation> getAllReservations() {
         List<Reservation> reservations = reservationRepository.findAll();
+
 //
 //		reservations.forEach(reservation -> {
 //			Hibernate.initialize(reservation.getUser());
