@@ -12,14 +12,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 @Configuration
 public class RedisConfig {
 
-//    @Bean
-//    public RedisConnectionFactory redisConnectionFactory() {
-//        RedisStandaloneConfiguration redisConfig = new RedisStandaloneConfiguration();
-//        redisConfig.setHostName("valkey-adea82e-pranavprem16131-f50a.h.aivencloud.com");
-//        redisConfig.setPort(24941);
-//        redisConfig.setPassword("AVNS_pAA8H9ApsH50OxHbbze");
-//        return new LettuceConnectionFactory(redisConfig);
-//    }
+
 
     @Bean
     public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory redisConnectionFactory) {
