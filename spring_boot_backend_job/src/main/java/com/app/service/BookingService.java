@@ -10,5 +10,8 @@ public interface BookingService {
     List<BookingResponse> getBookingsByRoom(Long roomId);
     List<BookingResponse> getBookingsByReservation(Long reservationId);
     public void deleteBooking(Long bookingId);
+    public default void Book(){
+        System.out.println("this is method in interface");
+    }
 }
 

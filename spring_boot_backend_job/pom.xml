@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
-	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+		 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 	<parent>
 		<groupId>org.springframework.boot</groupId>
@@ -16,11 +16,15 @@
 	<description>Template Project for Spring Boot based Backend </description>
 	<properties>
 		<java.version>11</java.version>
+		<sonar.host.url>http://localhost:9000</sonar.host.url>
+		<sonar.login>d3a7e2f13bd667bf8c1bd79140b3e1ce8e45c42f</sonar.login>
 	</properties>
+
+
 	<dependencies>
 
 
-			<!-- Swagger/OpenAPI -->
+		<!-- Swagger/OpenAPI -->
 
 
 		<dependency>
@@ -50,7 +54,7 @@
 			<version>1.7.0</version>
 		</dependency>
 
-<!--		kafka-->
+		<!--		kafka-->
 		<dependency>
 			<groupId>org.springframework.kafka</groupId>
 			<artifactId>spring-kafka</artifactId>
@@ -69,11 +73,7 @@
 			<artifactId>jackson-core</artifactId>
 			<version>2.15.2</version>
 		</dependency>
-		<dependency>
-			<groupId>com.fasterxml.jackson.databind</groupId>
-			<artifactId>jackson-databind</artifactId>
-			<version>2.15.2</version>
-		</dependency>
+
 
 
 
@@ -222,6 +222,13 @@
 					</excludes>
 				</configuration>
 			</plugin>
+
+			<plugin>
+				<groupId>org.sonarsource.scanner.maven</groupId>
+				<artifactId>sonar-maven-plugin</artifactId>
+				<version>3.7.0.1746</version>
+			</plugin>
+
 		</plugins>
 	</build>
 

@@ -1,7 +1,7 @@
 package com.app.service;
 
 import java.util.List;
-import java.util.Optional;
+
 import java.util.stream.Collectors;
 
 import com.app.dao.*;
@@ -10,6 +10,7 @@ import com.app.entities.*;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.hibernate.Hibernate;
+import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
@@ -26,7 +27,7 @@ import com.app.exception.*;
 
 import lombok.extern.slf4j.Slf4j;
 
-import javax.mail.MessagingException;
+
 
 @EnableCaching
 @Slf4j
@@ -64,6 +65,11 @@ public class HotelServiceImpl implements HotelService {
     @Autowired
     private PaymentRepository paymentRepository;
 
+
+    @Autowired
+    private ModelMapper modelMapper; // Inject ModelMapper
+
+
     @Override
     @Transactional
     @CachePut(value = "reservations", key = "#result.reservationId")
@@ -82,7 +88,13 @@ public class HotelServiceImpl implements HotelService {
                     return new RoomNotFoundException("Room not found");
                 });
 
+
         // Check if room is available during the requested dates
+//        Room room = roomRepository.findByRoomNumber(request.getRoomNumber())
+//                .orElseThrow(() -> {
+//                    log.error("Room not found: {}", request.getRoomNumber());
+//                    return new RoomNotFoundException("Room not found");
+//                });
         boolean roomIsBooked = reservationRepository.existsByRoomAndCheckInDateLessThanEqualAndCheckOutDateGreaterThanEqual(
                 room, request.getCheckOutDate(), request.getCheckInDate());
 
@@ -92,16 +104,19 @@ public class HotelServiceImpl implements HotelService {
         }
 
         // Create the reservation
-        Reservation reservation = new Reservation();
-        reservation.setGuestName(request.getGuestName());
+//        Reservation reservation = new Reservation();
+//        reservation.setGuestName(request.getGuestName());
+//        reservation.setUser(user);
+//        reservation.setCheckInDate(request.getCheckInDate());
+//        reservation.setCheckOutDate(request.getCheckOutDate());
+//        reservation.setRoom(room);
+//        reservation.setTotalPrice(request.getTotalPrice());
+//        reservation.setEmail(request.getEmail());
+
+        // After: Using ModelMapper
+        Reservation reservation = modelMapper.map(request, Reservation.class);
         reservation.setUser(user);
-        reservation.setCheckInDate(request.getCheckInDate());
-        reservation.setCheckOutDate(request.getCheckOutDate());
         reservation.setRoom(room);
-        reservation.setTotalPrice(request.getTotalPrice());
-        reservation.setEmail(request.getEmail());
-
-
         // Process payment after saving the reservation to ensure reservationId is set
         // We are now processing the payment in the createBooking method
         log.info("Reservation created successfully for room: {}", room.getRoomId());
@@ -142,33 +157,37 @@ public class HotelServiceImpl implements HotelService {
         return reservation;
     }
 
-    private String generateConfirmationEmail(CreateReservationRequest request, Room room) {
-        return "<html><head>"
-                + "<style>"
-                + "body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; padding: 20px; background-color: #f4f4f4; }"
-                + "h2 { color: #4CAF50; }"
-                + "table { width: 100%; border-collapse: collapse; margin-top: 20px; background-color: #ffffff; }"
-                + "th, td { padding: 10px; text-align: left; border: 1px solid #ddd; }"
-                + "th { background-color: #4CAF50; color: white; }"
-                + ".footer { margin-top: 20px; font-size: 12px; color: #555; text-align: center; }"
-                + "</style>"
-                + "</head><body>"
-                + "<h2>Reservation Confirmation</h2>"
-                + "<p>Dear <strong>" + request.getGuestName() + "</strong>,</p>"
-                + "<p>Your reservation has been confirmed. Here are the details:</p>"
-                + "<table>"
-                + "<tr><th>Check-in Date</th><td>" + request.getCheckInDate() + "</td></tr>"
-                + "<tr><th>Check-out Date</th><td>" + request.getCheckOutDate() + "</td></tr>"
-                + "<tr><th>Room Type</th><td>" + room.getType() + "</td></tr>"
-                + "<tr><th>Total Price</th><td>" + request.getTotalPrice() + "</td></tr>"
-                + "</table>"
-                + "<p>We look forward to welcoming you to our hotel. If you have any questions, feel free to reach out.</p>"
-                + "<p>Best regards,</p>"
-                + "<p>Your Hotel Team</p>"
-                + "<div class='footer'>"
-                + "<p>This is an automated message. Please do not reply directly to this email.</p>"
-                + "</div>"
-                + "</body></html>";
+    @Override
+    @Transactional
+    @CacheEvict(value = "rooms", allEntries = true)
+
+//	@Cacheable(value = "reservations")
+    public Room createRoom(CreateRoomRequest roomRequest) {
+        Long userId = getUserIdFromSecurityContext();
+
+        // Check if the user exists
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // Fetch the hotel associated with the room
+        Hotel hotel = hotelRepository.findById(roomRequest.getHotelId())
+                .orElseThrow(() -> new RuntimeException("Hotel not found"));
+
+        // Create and save the room entity
+        Room room = new Room();
+        room.setRoomNumber(roomRequest.getRoomNumber());
+        room.setType(roomRequest.getType());
+        room.setPrice(roomRequest.getPrice());
+        room.setAvailability(true);  // Default to true (room is available)
+        room.setHotel(hotel);  // Set the hotel for the room
+        room.setAddedBy(user);  // Set the user who added the room
+
+        Room savedRoom = roomRepository.save(room);
+        log.info("Room created successfully: {}", savedRoom.getRoomId());
+
+
+
+        return savedRoom;
     }
 
 
@@ -189,35 +208,17 @@ public class HotelServiceImpl implements HotelService {
                     log.error("Room not found: {}", request.getRoomId());
                     return new RoomNotFoundException("Room not found");
                 });
-
-        reservation.setGuestName(request.getGuestName());
-        reservation.setCheckInDate(request.getCheckInDate());
-        reservation.setCheckOutDate(request.getCheckOutDate());
+//
+//        reservation.setGuestName(request.getGuestName());
+//        reservation.setCheckInDate(request.getCheckInDate());
+//        reservation.setCheckOutDate(request.getCheckOutDate());
+//        reservation.setRoom(room);
+//        reservation.setTotalPrice(request.getTotalPrice());
+        modelMapper.map(request, reservation); // Map updated fields
         reservation.setRoom(room);
-        reservation.setTotalPrice(request.getTotalPrice());
 
         log.info("Reservation updated successfully: {}", reservation.getRoom());
         return reservationRepository.save(reservation);
-    }
-
-    @Override
-//	@Cacheable(value = "reservations")
-    @Transactional
-    public List<RoomResponse> getAvailableRooms() {
-        List<Room> availableRooms = roomRepository.findByAvailability(true);
-        log.info("Fetched available rooms: {}", availableRooms.size());
-
-        return availableRooms.stream().map(room -> {
-            String hotelName = room.getHotel() != null ? room.getHotel().getName() : "Unknown Hotel";
-            return new RoomResponse(
-                    room.getRoomId(),
-                    room.getRoomNumber(),
-                    room.getType(),
-                    room.getPrice(),
-                    room.isAvailability(),
-                    hotelName // Add hotel name
-            );
-        }).collect(Collectors.toList());
     }
 
 
@@ -288,7 +289,34 @@ public class HotelServiceImpl implements HotelService {
 
 
     private void sendCancellationEmail(Reservation reservation) {
-        String emailBody = "<html><head><style>body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; padding: 20px; background-color: #f4f4f4; }h2 { color: #F44336; }table { width: 100%; border-collapse: collapse; margin-top: 20px; background-color: #ffffff; }th, td { padding: 10px; text-align: left; border: 1px solid #ddd; }th { background-color: #F44336; color: white; }.footer { margin-top: 20px; font-size: 12px; color: #555; text-align: center; }</style></head><body><h2>Reservation Cancellation</h2><p>Dear <strong>" + reservation.getGuestName() + "</strong>,</p><p>We regret to inform you that your reservation has been canceled. Below are the details:</p><table><tr><th>Reservation ID</th><td>" + reservation.getReservationId() + "</td></tr><tr><th>Check-in Date</th><td>" + reservation.getCheckInDate() + "</td></tr><tr><th>Check-out Date</th><td>" + reservation.getCheckOutDate() + "</td></tr><tr><th>Room Type</th><td>" + reservation.getRoom().getType() + "</td></tr><tr><th>Total Price</th><td>₹" + reservation.getTotalPrice() + "</td></tr></table><p>If you have any questions or concerns, feel free to reach out to our customer support team.</p><p>We apologize for any inconvenience caused.</p><p>Best regards,</p><p>Your Hotel Team</p><div class='footer'><p>This is an automated message. Please do not reply directly to this email.</p></div></body></html>";
+        String emailBody = "<html><head><style>"
+                + "body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; padding: 20px; background-color: #f4f4f4; }"
+                + "h2 { color: #F44336; }"
+                + "h3 { color: #555; }"
+                + "table { width: 100%; border-collapse: collapse; margin-top: 20px; background-color: #ffffff; border-radius: 8px; box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1); }"
+                + "th, td { padding: 12px; text-align: left; border: 1px solid #ddd; }"
+                + "th { background-color: #F44336; color: white; border-radius: 6px 6px 0 0; }"
+                + "td { border-radius: 0 0 6px 6px; }"
+                + ".button { display: inline-block; padding: 10px 20px; background-color: #F44336; color: white; text-decoration: none; border-radius: 5px; margin-top: 20px; }"
+                + ".footer { margin-top: 30px; font-size: 12px; color: #555; text-align: center; padding-top: 20px; border-top: 1px solid #ddd; }"
+                + ".footer a { color: #F44336; text-decoration: none; }"
+                + "</style></head><body>"
+                + "<h2>Reservation Cancellation</h2>"
+                + "<p>Dear <strong>" + reservation.getGuestName() + "</strong>,</p>"
+                + "<p>We regret to inform you that your reservation has been canceled. Below are the details:</p>"
+                + "<table>"
+                + "<tr><th>Reservation ID</th><td>" + reservation.getReservationId() + "</td></tr>"
+                + "<tr><th>Check-in Date</th><td>" + reservation.getCheckInDate() + "</td></tr>"
+                + "<tr><th>Check-out Date</th><td>" + reservation.getCheckOutDate() + "</td></tr>"
+                + "<tr><th>Room Type</th><td>" + reservation.getRoom().getType() + "</td></tr>"
+                + "<tr><th>Total Price</th><td>₹" + reservation.getTotalPrice() + "</td></tr>"
+                + "</table>"
+                + "<p>If you have any questions or concerns, feel free to reach out to our <a href='https://www.goibibo.com/mysupport/trips/' class='button'>Customer Support</a>.</p>"
+                + "<p>We apologize for any inconvenience caused.</p>"
+                + "<p>Best regards,</p>"
+                + "<p>PSC Bookings</p>"
+                + "<div class='footer'><p>This is an automated message. Please do not reply directly to this email.</p></div>"
+                + "</body></html>";
 
         EmailMessage emailMessage = new EmailMessage(reservation.getEmail(), "Reservation Canceled", emailBody);
 
@@ -302,21 +330,39 @@ public class HotelServiceImpl implements HotelService {
         }
     }
 
-    private void validateReservation(CreateReservationRequest request) {
-        Room room = roomRepository.findById(request.getRoomId())
-                .orElseThrow(() -> new RoomNotFoundException("Room not found"));
-
-        // Check for date overlap
-        boolean isConflict = reservationRepository
-                .existsByRoomAndCheckInDateLessThanEqualAndCheckOutDateGreaterThanEqual(room, request.getCheckOutDate(),
-                        request.getCheckInDate());
-
-        if (isConflict) {
-            log.error("Conflict: Reservation already exists for the selected room and dates: {} to {}",
-                    request.getCheckInDate(), request.getCheckOutDate());
-            throw new ReservationConflictException("Conflict: Room is already booked for the selected dates.");
-        }
+    private String generateConfirmationEmail(CreateReservationRequest request, Room room) {
+        return "<html><head>"
+                + "<style>"
+                + "body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; padding: 20px; background-color: #f4f4f4; }"
+                + "h2 { color: #4CAF50; }"
+                + "h3 { color: #555; }"
+                + "table { width: 100%; border-collapse: collapse; margin-top: 20px; background-color: #ffffff; border-radius: 8px; box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1); }"
+                + "th, td { padding: 12px; text-align: left; border: 1px solid #ddd; }"
+                + "th { background-color: #4CAF50; color: white; border-radius: 6px 6px 0 0; }"
+                + "td { border-radius: 0 0 6px 6px; }"
+                + ".button { display: inline-block; padding: 10px 20px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 5px; margin-top: 20px; }"
+                + ".footer { margin-top: 30px; font-size: 12px; color: #555; text-align: center; padding-top: 20px; border-top: 1px solid #ddd; }"
+                + ".footer a { color: #4CAF50; text-decoration: none; }"
+                + "</style>"
+                + "</head><body>"
+                + "<h2>Reservation Confirmation</h2>"
+                + "<p>Dear <strong>" + request.getGuestName() + "</strong>,</p>"
+                + "<p>Your reservation has been confirmed. Here are the details:</p>"
+                + "<table>"
+                + "<tr><th>Check-in Date</th><td>" + request.getCheckInDate() + "</td></tr>"
+                + "<tr><th>Check-out Date</th><td>" + request.getCheckOutDate() + "</td></tr>"
+                + "<tr><th>Room Type</th><td>" + room.getType() + "</td></tr>"
+                + "<tr><th>Total Price</th><td>₹" + request.getTotalPrice() + "</td></tr>"
+                + "</table>"
+                + "<p>We look forward to welcoming you to our hotel. If you have any questions, feel free to reach out to our <a href='https://www.goibibo.com/mysupport/trips/' class='button'>Customer Support</a>.</p>"
+                + "<p>Best regards,</p>"
+                + "<p>PSC Bookings </p>" // Fixed this part
+                + "<div class='footer'><p>This is an automated message. Please do not reply directly to this email.</p></div>"
+                + "</body></html>";
     }
+
+
+
 
     @Override
     @Transactional
@@ -324,12 +370,6 @@ public class HotelServiceImpl implements HotelService {
     public List<Reservation> getAllReservations() {
         List<Reservation> reservations = reservationRepository.findAll();
 
-//
-//		reservations.forEach(reservation -> {
-//			Hibernate.initialize(reservation.getUser());
-//			Hibernate.initialize(reservation.getRoom());
-//			Hibernate.initialize(reservation.getRoom().getHotel());
-//		});
 
         return reservations;
     }
@@ -350,41 +390,24 @@ public class HotelServiceImpl implements HotelService {
     }
 
 
+
     @Override
     @Transactional
-    @CacheEvict(value = "rooms", allEntries = true)
+    public List<RoomResponse> getAvailableRooms() {
+        List<Room> availableRooms = roomRepository.findByAvailability(true);
+        log.info("Fetched available rooms: {}", availableRooms.size());
+        return availableRooms.stream().map(room -> {
+            String hotelName = room.getHotel() != null ? room.getHotel().getName() : "Unknown Hotel";
+            RoomResponse roomResponse = modelMapper.map(room, RoomResponse.class);
+            roomResponse.setHotelName(hotelName); // Set hotel name manually if needed
+            return roomResponse;
+        }).collect(Collectors.toList());
 
 
-    public Room createRoom(CreateRoomRequest roomRequest) {
-        Long userId = getUserIdFromSecurityContext();
-
-        // Check if the user exists
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        // Fetch the hotel associated with the room
-        Hotel hotel = hotelRepository.findById(roomRequest.getHotelId())
-                .orElseThrow(() -> new RuntimeException("Hotel not found"));
-
-        // Create and save the room entity
-        Room room = new Room();
-        room.setRoomNumber(roomRequest.getRoomNumber());
-        room.setType(roomRequest.getType());
-        room.setPrice(roomRequest.getPrice());
-        room.setAvailability(true);  // Default to true (room is available)
-        room.setHotel(hotel);  // Set the hotel for the room
-        room.setAddedBy(user);  // Set the user who added the room
-
-        Room savedRoom = roomRepository.save(room);
-        log.info("Room created successfully: {}", savedRoom.getRoomId());
-
-        if (savedRoom == null || savedRoom.getRoomId() == null) {
-            log.error("Room was not saved correctly. Room: {}", savedRoom);
-            throw new RuntimeException("Failed to create room, roomId is null.");
-        }
-
-        return savedRoom;
     }
+
+
+
 
     private Long getUserIdFromSecurityContext() {
         CustomUserDetails userDetails = (CustomUserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();

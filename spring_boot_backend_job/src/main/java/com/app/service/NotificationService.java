@@ -1,5 +1,6 @@
 package com.app.service;
 
+import lombok.extern.slf4j.XSlf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -10,6 +11,7 @@ import javax.mail.MessagingException;
 import javax.mail.internet.MimeMessage;
 
 @Service
+@XSlf4j
 public class NotificationService {
 
     @Autowired
@@ -32,10 +34,11 @@ public class NotificationService {
 
         try {
             emailSender.send(message);
-            System.out.println("Email sent successfully to: " + to);
+            log.info("Email sent successfully to: " + to);
+
         } catch (MailException e) {
             // Log the error or rethrow with additional information if needed
-            System.err.println("Error sending email: " + e.getMessage());
+            log.error("Error sending email: " + e.getMessage());
             throw new MessagingException("Error sending email to: " + to, e);
         }
     }
@@ -67,9 +70,9 @@ public class NotificationService {
 
         try {
             emailSender.send(message);
-            System.out.println("Email sent successfully to: " + to);
+            log.info("Email sent successfully to: " + to);
         } catch (MailException e) {
-            System.err.println("Error sending email: " + e.getMessage());
+         log.error("Error sending email: " + e.getMessage());
             throw new MessagingException("Error sending email with CC and BCC to: " + to, e);
         }
     }

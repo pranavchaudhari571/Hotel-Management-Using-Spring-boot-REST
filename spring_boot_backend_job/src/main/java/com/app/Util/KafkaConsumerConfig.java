@@ -1,18 +1,15 @@
 package com.app.Util;
 
-import com.app.dto.EmailMessage;
-import com.app.service.EmailMessageListener;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.kafka.ConcurrentKafkaListenerContainerFactoryConfigurer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
-import org.springframework.kafka.config.KafkaListenerContainerFactory;
+
 import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
-import org.springframework.kafka.listener.ConcurrentMessageListenerContainer;
+
 import org.springframework.messaging.converter.MappingJackson2MessageConverter;
 import org.springframework.messaging.converter.MessageConverter;
 
@@ -82,16 +79,7 @@ public class KafkaConsumerConfig {
         return factory;
     }
 
-//    @Bean
-//    public KafkaListenerContainerFactory<ConcurrentMessageListenerContainer<String, EmailMessage>> kafkaListenerContainerFactory(
-//            ConcurrentKafkaListenerContainerFactoryConfigurer configurer,
-//            ConsumerFactory<String, EmailMessage> consumerFactory) {
-//        ConcurrentKafkaListenerContainerFactory<String, EmailMessage> factory =
-//                new ConcurrentKafkaListenerContainerFactory<>();
-//        configurer.configure(factory, consumerFactory);
-//        factory.setMessageConverter(new Jackson2JsonMessageConverter());
-//        return factory;
-//    }
+
 
 
     @Bean

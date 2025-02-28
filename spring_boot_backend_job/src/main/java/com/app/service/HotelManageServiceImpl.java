@@ -8,7 +8,9 @@ import com.app.dto.HotelResponseDTO;
 import com.app.entities.Hotel;
 import com.app.entities.Role;
 import com.app.entities.User;
+import com.app.exception.HotelNotfoundException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,10 +33,10 @@ public class HotelManageServiceImpl implements HotelManageService {
     public HotelResponseDTO addHotel(HotelRequestDTO hotelRequestDTO, Long adminId) {
         // Check if the admin exists
         User admin = userRepository.findById(adminId)
-                .orElseThrow(() -> new RuntimeException("Admin user not found"));
+                .orElseThrow(() -> new UsernameNotFoundException("Admin user not found"));
 
         if (!admin.getRole().equals(Role.ADMIN)) {
-            throw new RuntimeException("Only admins can add hotels");
+            throw new UsernameNotFoundException("Only admins can add hotels");
         }
 
         // Create and save the hotel entity
@@ -55,15 +57,15 @@ public class HotelManageServiceImpl implements HotelManageService {
     public HotelResponseDTO updateHotel(Long hotelId, HotelRequestDTO hotelRequestDTO, Long adminId) {
         // Check if the admin exists
         User admin = userRepository.findById(adminId)
-                .orElseThrow(() -> new RuntimeException("Admin user not found"));
+                .orElseThrow(() -> new UsernameNotFoundException("Admin user not found"));
 
         if (!admin.getRole().equals(Role.ADMIN)) {
-            throw new RuntimeException("Only admins can update hotels");
+            throw new UsernameNotFoundException("Only admins can update hotels");
         }
 
         // Find and update the hotel
         Hotel hotel = hotelRepository.findById(hotelId)
-                .orElseThrow(() -> new RuntimeException("Hotel not found"));
+                .orElseThrow(() -> new UsernameNotFoundException("Hotel not found"));
 
         hotel.setName(hotelRequestDTO.getName());
         hotel.setLocation(hotelRequestDTO.getLocation());
@@ -85,7 +87,7 @@ public class HotelManageServiceImpl implements HotelManageService {
     @Transactional(readOnly = true)
     public HotelResponseDTO getHotelById(Long hotelId) {
         Hotel hotel = hotelRepository.findById(hotelId)
-                .orElseThrow(() -> new RuntimeException("Hotel not found"));
+                .orElseThrow(() -> new HotelNotfoundException("Hotel not found"));
         return mapToResponseDTO(hotel);
     }
 
@@ -94,15 +96,15 @@ public class HotelManageServiceImpl implements HotelManageService {
     public void deleteHotel(Long hotelId, Long adminId) {
         // Check if the admin exists
         User admin = userRepository.findById(adminId)
-                .orElseThrow(() -> new RuntimeException("Admin user not found"));
+                .orElseThrow(() -> new UsernameNotFoundException("Admin user not found"));
 
         if (!admin.getRole().equals(Role.ADMIN)) {
-            throw new RuntimeException("Only admins can delete hotels");
+            throw new UsernameNotFoundException("Only admins can delete hotels");
         }
 
         // Check if the hotel exists
         Hotel hotel = hotelRepository.findById(hotelId)
-                .orElseThrow(() -> new RuntimeException("Hotel not found"));
+                .orElseThrow(() -> new HotelNotfoundException("Hotel not found"));
 
         // Delete the hotel
         hotelRepository.delete(hotel);

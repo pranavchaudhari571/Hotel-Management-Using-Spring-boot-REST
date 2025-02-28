@@ -4,14 +4,11 @@ import com.app.dto.EmailMessage;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.XSlf4j;
-import org.apache.catalina.mapper.Mapper;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
+
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Bean;
+
 import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.kafka.listener.MessageListener;
-import org.springframework.messaging.converter.MappingJackson2MessageConverter;
-import org.springframework.messaging.converter.MessageConverter;
+
 import org.springframework.stereotype.Service;
 @Service("emailMessageListenerService")
 @XSlf4j

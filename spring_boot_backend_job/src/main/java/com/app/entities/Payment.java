@@ -26,5 +26,6 @@ public class Payment {
     private Reservation reservation;  // Ensure this is not null
 
     @Column(nullable = false)
+    @Enumerated(EnumType.STRING)
     private PaymentStatus status;  // Enum for PaymentStatus (e.g., PENDING, COMPLETED)
 }

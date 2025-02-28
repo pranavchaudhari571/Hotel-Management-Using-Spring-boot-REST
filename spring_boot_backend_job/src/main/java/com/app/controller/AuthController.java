@@ -44,4 +44,14 @@ public class AuthController {
             return new ResponseEntity<>(e.getMessage(), HttpStatus.UNAUTHORIZED);
         }
     }
+
+    @PostMapping("/logout")
+    public ResponseEntity<?> logout(@RequestHeader("Authorization") String authHeader) {
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String token = authHeader.substring(7);
+            authService.logout(token);
+            return new ResponseEntity<>("Logged out successfully", HttpStatus.OK);
+        }
+        return new ResponseEntity<>("Invalid Authorization header", HttpStatus.BAD_REQUEST);
+    }
 }

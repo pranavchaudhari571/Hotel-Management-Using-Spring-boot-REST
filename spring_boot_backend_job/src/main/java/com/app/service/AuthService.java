@@ -8,6 +8,7 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -16,10 +17,12 @@ import java.security.Key;
 import java.util.Base64;
 import java.util.Date;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @Slf4j
 public class AuthService {
+
 
     @Autowired
     private UserRepository userRepository;
@@ -27,20 +30,28 @@ public class AuthService {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    private final Key SECRET_KEY = Keys.hmacShaKeyFor(Base64.getDecoder().decode("ZGpGVHVtMkZ3c3Y4TmJqU2RSbVJIV1lLcndITjVXSjdTY0FGVTF4UUV3TExIVm5WdUJuT0xZR3U="));
+    private final Key secretKey = Keys.hmacShaKeyFor(Base64.getDecoder().decode("ZGpGVHVtMkZ3c3Y4TmJqU2RSbVJIV1lLcndITjVXSjdTY0FGVTF4UUV3TExIVm5WdUJuT0xZR3U="));
 
+    @Autowired
+    private RedisTemplate<String, Object> redisTemplate;
+
+    public static final String TOKEN_PREFIX = "TOKEN:";
     // Generate JWT Token with username, role(s), and user ID (adminId)
     public String generateToken(User user) {
         long expirationTime = 10000 * 60 * 60 * 10; // 10 hours
 
-        return Jwts.builder()
+        String token= Jwts.builder()
                 .setSubject(user.getUsername())  // Set username as subject
                 .claim("role", user.getRole().name())  // Role as claim (single role)
                 .claim("adminId", user.getId())  // Add user ID as a claim
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + expirationTime))  // Set expiration time (10 hours)
-                .signWith(SECRET_KEY)  // Sign with secret key
+                .signWith(secretKey)  // Sign with secret key
                 .compact();
+        String tokenKey = TOKEN_PREFIX + token;
+        redisTemplate.opsForValue().set(tokenKey, true, expirationTime, TimeUnit.MILLISECONDS);
+
+        return token;
     }
 
     // Register a user and assign role (if not already assigned)
@@ -63,6 +74,17 @@ public class AuthService {
 
         // Saving the user in the repository
         return userRepository.save(user);
+    }
+
+
+    public void logout(String token) {
+        String tokenKey = TOKEN_PREFIX + token;
+        redisTemplate.delete(tokenKey);  // Blacklist the token
+    }
+
+    public boolean isTokenValid(String token) {
+        String tokenKey = TOKEN_PREFIX + token;
+        return Boolean.TRUE.equals(redisTemplate.opsForValue().get(tokenKey));
     }
 
     // Authenticate user and return user details

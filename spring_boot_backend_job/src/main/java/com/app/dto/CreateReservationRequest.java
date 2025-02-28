@@ -32,6 +32,9 @@ public class CreateReservationRequest {
  @NotNull(message = "Check-out date cannot be null")
  @Future(message = "Check-out date must be in the future")
  private LocalDate checkOutDate;
+//
+// @NotBlank(message = "Room number cannot be null")
+// private String roomNumber;
 
  @NotNull(message = "Room ID cannot be null")
  private Long roomId;
