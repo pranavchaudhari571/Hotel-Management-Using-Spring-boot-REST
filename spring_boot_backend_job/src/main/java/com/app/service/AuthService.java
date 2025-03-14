@@ -2,6 +2,7 @@ package com.app.service;
 
 import com.app.dao.UserRepository;
 import com.app.dto.UserDTO;
+import com.app.entities.CustomOAuth2User;
 import com.app.entities.Role;
 import com.app.entities.User;
 import io.jsonwebtoken.Jwts;
@@ -103,5 +104,24 @@ public class AuthService {
             log.warn("Failed authentication attempt for username {}: user not found", username);
             throw new BadCredentialsException("Username not found");
         }
+    }
+
+    public User registerOrFetchOAuthUser(CustomOAuth2User oAuth2User) {
+        String email = oAuth2User.getEmail(); // Extract email from OAuth2User
+
+        // Check if user already exists
+        Optional<User> existingUser = userRepository.findByUsername(email);
+        if (existingUser.isPresent()) {
+            return existingUser.get();
+        }
+
+        // If user does not exist, create a new one
+        User newUser = new User();
+        newUser.setUsername(email);
+        newUser.setPassword(""); // No password required for OAuth users
+        newUser.setRole(Role.USER); // Default role
+
+        // Save to database
+        return userRepository.save(newUser);
     }
 }

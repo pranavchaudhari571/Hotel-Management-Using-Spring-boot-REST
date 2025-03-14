@@ -1,6 +1,7 @@
 package com.app.Util;
 
 import com.app.entities.CustomUserDetails;
+import com.app.service.RateLimiterService;
 import io.jsonwebtoken.*;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,6 +33,9 @@ public class JwtRequestFilter extends OncePerRequestFilter {
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
 
+    @Autowired
+    private RateLimiterService rateLimiterService;
+
     @Value("${SECRET_KEY}")
     private String jwtSecret;
 
@@ -39,6 +43,14 @@ public class JwtRequestFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
         String header = request.getHeader("Authorization");
+        String clientIp=request.getRemoteAddr();
+        String apiPath = request.getRequestURI();
+        if (!rateLimiterService.isAllowed(clientIp, apiPath)) { // Check per API path
+            response.setStatus(429); // Too Many Requests
+            response.getWriter().write("Rate limit exceeded for this endpoint. Please try again later.");
+            return;
+        }
+
 
         if (header != null && header.startsWith("Bearer ")) {
             String token = header.substring(7);
