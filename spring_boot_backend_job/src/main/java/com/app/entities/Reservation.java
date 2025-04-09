@@ -48,6 +48,10 @@ public class Reservation implements Serializable {
     @NotBlank
     private String email;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private ReservationStatus status;
+
     @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")

@@ -72,7 +72,6 @@ public class JwtRequestFilter extends OncePerRequestFilter {
                         String role = (String) claims.get("role");
                         authorities.add(new SimpleGrantedAuthority("ROLE_" + role));  // Add "ROLE_" prefix
                     }
-
                     Long adminId = (claims.get("adminId") instanceof Integer) ? ((Integer) claims.get("adminId")).longValue() : (Long) claims.get("adminId");
 
                     if (username != null) {

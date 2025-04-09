@@ -1,0 +1,9 @@
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  - job_name: 'my-spring-boot-app'
+    static_configs:
+      - targets: ['app:8081']
+        labels:
+          group: 'spring-boot'

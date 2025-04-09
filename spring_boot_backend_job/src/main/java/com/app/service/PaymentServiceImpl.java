@@ -6,6 +6,7 @@ import com.app.entities.PaymentStatus;
 import com.app.entities.Reservation;
 import lombok.extern.slf4j.XSlf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -25,9 +26,12 @@ public class PaymentServiceImpl implements PaymentService{
     @Autowired
     private NotificationService notificationService;
 
+    @Value("${app.admin.email}")
+    private String adminEmail;
+
     @Async("asyncTaskExecutor")
 //    @Scheduled(cron = "0 0 10 5 * ?")
- @Scheduled(cron = "0 */10 * * * ?")
+ @Scheduled(cron = "0 */30 * * * ?")
 //Runs on the 5th of every month at 10 AM
     public void sendMonthlyRevenueReport() {
         log.info("Starting monthly revenue report generation...");
@@ -53,7 +57,7 @@ public class PaymentServiceImpl implements PaymentService{
         String emailBody = generateEmailReport(previousMonth, totalRevenue, payments);
 
         // Send email to admin
-        String adminEmail = "pranavprem1613@gmail.com";  // Replace with actual admin email
+ // Replace with actual admin email
         try {
             notificationService.sendHtmlEmail(adminEmail, "Monthly Revenue Report - " + previousMonth, emailBody);
             log.info("Monthly revenue report sent successfully to {}", adminEmail);
@@ -61,6 +65,7 @@ public class PaymentServiceImpl implements PaymentService{
             log.error("Failed to send monthly revenue report: {}", e.getMessage());
         }
     }
+    @Async("asyncTaskExecutor")
     private String generateEmailReport(YearMonth month, BigDecimal revenue, List<Payment> payments) {
         StringBuilder report = new StringBuilder();
 

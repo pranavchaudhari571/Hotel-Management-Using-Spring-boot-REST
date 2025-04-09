@@ -12,7 +12,7 @@ public class RateLimiterService {
     @Autowired
     private RedisTemplate<String, String> redisTemplate;
 
-    private final int REQUEST_LIMIT = 5; // Max requests allowed per endpoint
+    private final int REQUEST_LIMIT = 13; // Max requests allowed per endpoint
     private final long TIME_WINDOW = 60; // Time window in seconds
 
     public boolean isAllowed(String clientIp, String apiPath) {
