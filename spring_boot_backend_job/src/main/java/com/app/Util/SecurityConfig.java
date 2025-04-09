@@ -40,7 +40,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
         http
                 .csrf().disable()  // Disable CSRF protection for JWT
                 .authorizeRequests()
-                .antMatchers("/auth/register", "/auth/login").permitAll()  // Allow open access to registration/login
+                .antMatchers("/auth/register", "/auth/login","/auth/forgot-password","/auth/reset-password","/actuator/prometheus","/actuator").permitAll()  // Allow open access to registration/login
                 .antMatchers("/hotel/reservations/**").authenticated()
                 .antMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()  // Allow access to API docs
                 .antMatchers("/hotel/rooms/**").hasAuthority("ROLE_ADMIN")  // Use hasAuthority instead of hasRole

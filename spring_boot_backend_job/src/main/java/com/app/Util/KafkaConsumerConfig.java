@@ -15,33 +15,14 @@ import org.springframework.messaging.converter.MessageConverter;
 
 import java.util.HashMap;
 import java.util.Map;
-
 @Configuration
 public class KafkaConsumerConfig {
 
-    @Value("${kafka.bootstrap.servers}")
+    @Value("${spring.kafka.bootstrap-servers}")
     private String bootstrapServers;
 
-    @Value("${kafka.group.id}")
+    @Value("${spring.kafka.consumer.group-id}")
     private String groupId;
-
-    @Value("${kafka.sasl.jaas.config}")
-    private String saslJaasConfig;
-
-    @Value("${kafka.ssl.truststore.location}")
-    private String truststoreLocation;
-
-    @Value("${kafka.ssl.truststore.password}")
-    private String truststorePassword;
-
-    @Value("${kafka.ssl.keystore.location}")
-    private String keystoreLocation;
-
-    @Value("${kafka.ssl.keystore.password}")
-    private String keystorePassword;
-
-    @Value("${kafka.ssl.key.password}")
-    private String keyPassword;
 
     @Bean
     public ConsumerFactory<String, String> consumerFactory() {
@@ -51,22 +32,10 @@ public class KafkaConsumerConfig {
         configs.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
         configs.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         configs.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        configs.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");
+        configs.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, "15000");
+        configs.put(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, "5000");
 
-        // Kafka security configurations
-        configs.put("security.protocol", "SASL_SSL");
-        configs.put("sasl.mechanism", "SCRAM-SHA-256");
-        configs.put("sasl.jaas.config", saslJaasConfig);
-
-        configs.put("ssl.truststore.location", truststoreLocation);
-        configs.put("ssl.truststore.password", truststorePassword);
-        configs.put("ssl.keystore.location", keystoreLocation);
-        configs.put("ssl.keystore.password", keystorePassword);
-        configs.put("ssl.key.password", keyPassword);
-
-        // Additional configurations
-        configs.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");  // Reset offset to earliest
-        configs.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 500);  // Max records per poll
-        configs.put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, 300000);  // Max interval between polls
 
         return new DefaultKafkaConsumerFactory<>(configs);
     }
@@ -75,15 +44,7 @@ public class KafkaConsumerConfig {
     public ConcurrentKafkaListenerContainerFactory<String, String> kafkaListenerContainerFactory() {
         ConcurrentKafkaListenerContainerFactory<String, String> factory = new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory());
-        factory.setConcurrency(3);  // Adjust concurrency based on load
+        factory.setConcurrency(1);
         return factory;
-    }
-
-
-
-
-    @Bean
-    public MessageConverter messageConverter() {
-        return new MappingJackson2MessageConverter();
     }
 }

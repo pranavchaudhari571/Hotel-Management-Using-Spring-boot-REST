@@ -103,6 +103,7 @@ public class HotelServiceImpl implements HotelService {
             throw new ReservationConflictException("Room is already booked during the requested dates.");
         }
 
+
         // Create the reservation
 //        Reservation reservation = new Reservation();
 //        reservation.setGuestName(request.getGuestName());
@@ -117,6 +118,8 @@ public class HotelServiceImpl implements HotelService {
         Reservation reservation = modelMapper.map(request, Reservation.class);
         reservation.setUser(user);
         reservation.setRoom(room);
+        // Set the default reservation status, as the new status field is required.
+        reservation.setStatus(ReservationStatus.PENDING);
         // Process payment after saving the reservation to ensure reservationId is set
         // We are now processing the payment in the createBooking method
         log.info("Reservation created successfully for room: {}", room.getRoomId());
@@ -260,7 +263,9 @@ public class HotelServiceImpl implements HotelService {
         }
 
         // Fetch and delete associated bookings
-
+// we are doing soft delete of the reservation means maintaining logs and all but not deleting the reservation
+        reservation.setStatus(ReservationStatus.CANCELLED);
+        reservationRepository.save(reservation);
 
         // Revert room availability
         Room room = reservation.getRoom();
@@ -268,14 +273,14 @@ public class HotelServiceImpl implements HotelService {
         roomRepository.save(room);
 
         // Delete the reservation last to avoid integrity violation
-        try {
-            reservationRepository.deleteById(reservationId);
-            reservationRepository.flush();
-            log.info("Reservation ID {} deleted successfully", reservationId);
-        } catch (Exception e) {
-            log.error("Failed to delete reservation ID: {}", reservationId);
-            throw new ReservationDeletionException("Error while deleting reservation");
-        }
+//        try {
+//            reservationRepository.deleteById(reservationId);
+//            reservationRepository.flush();
+//            log.info("Reservation ID {} deleted successfully", reservationId);
+//        } catch (Exception e) {
+//            log.error("Failed to delete reservation ID: {}", reservationId);
+//            throw new ReservationDeletionException("Error while deleting reservation");
+//        }
 
         // Send cancellation email asynchronously via Kafka
         sendCancellationEmail(reservation);
