@@ -41,7 +41,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         response.addCookie(jwtCookie);
 
         // Redirect to frontend (WITHOUT token in URL)
-        response.sendRedirect("http://localhost:5174/homepage");
+        response.sendRedirect("http://localhost:5173/homepage");
         // Send JSON response with token
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");

@@ -30,8 +30,8 @@ public class PaymentServiceImpl implements PaymentService{
     private String adminEmail;
 
     @Async("asyncTaskExecutor")
-//    @Scheduled(cron = "0 0 10 5 * ?")
- @Scheduled(cron = "0 */30 * * * ?")
+    @Scheduled(cron = "0 0 10 5 * ?")
+// @Scheduled(cron = "0 */30 * * * ?")
 //Runs on the 5th of every month at 10 AM
     public void sendMonthlyRevenueReport() {
         log.info("Starting monthly revenue report generation...");
